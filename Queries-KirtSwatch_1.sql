@@ -124,3 +124,72 @@ WHERE StockedQty < (SELECT AVG(StockedQty) FROM Purchasing.PurchaseOrderDetail);
 SELECT ProductID, ModifiedDate 
 FROM Sales.SpecialOfferProduct 
 WHERE SpecialOfferID = (SELECT SpecialOfferID FROM Sales.SpecialOffer WHERE Description = 'Half-Price Pedal Sale');
+
+
+
+------------//--------------------------------------------------------------------------------//----------------------------------------------------------------------------------//-------------------------------------------------------------
+
+USE [AdventureWorks2014]
+-- Part 1: Simple Subqueries
+
+-- Q1: Show the highest price for which any individual product has been sold.
+select ProductID, MAX(UnitPrice) as 'Highest Price'
+from [Sales].[SalesOrderDetail] s
+group by ProductID
+
+-- Q2: Retrieve products with a ListPrice higher than the maximum selling price.
+SELECT [ProductID],[Name]
+FROM [Production].[Product]
+WHERE [ListPrice] > (SELECT MAX([UnitPrice]) FROM [Sales].[SalesOrderDetail])
+
+-- Q3: Return the ProductID for each product that has been ordered in quantities of 20 or more.
+select s.ProductID
+from Sales.SalesOrderDetail as s
+where OrderQty >= 20
+
+-- Q4: Retrieve the names of the products that have been ordered in quantities of 20 or more using subquery.
+select distinct ProductID, [Name]
+from Production.product as p
+where p.ProductID in (select s.ProductID from Sales.SalesOrderDetail as s where OrderQty >= 20)
+
+-- Q5: Retrieve the names of the products that have been ordered in quantities of 20 or more using Joins.
+SELECT DISTINCT NAME 
+FROM [Production].[Product] AS P1
+INNER JOIN  [Sales].[SalesOrderDetail] AS S1
+ON S1.ProductID = P1.ProductID
+WHERE S1.OrderQty >= 20
+
+-- Part 2: Correlate Subquery
+
+-- Q1: Return the order ID, product ID, and quantity for each sale of a product with maximum ordered quantity.
+SELECT od.SalesOrderID, od.ProductID, od.OrderQty
+FROM [Sales].[SalesOrderDetail] od
+WHERE od.OrderQty = (SELECT MAX([OrderQty]) FROM [Sales].[SalesOrderDetail] AS s WHERE od.ProductID=s.ProductID)
+
+-- Q2: Retrieve the order ID, order date, and customer ID for each order that has been placed.
+SELECT [SalesOrderID],[OrderDate],[CustomerID]
+FROM [Sales].[SalesOrderHeader]
+
+-- Q3: Modify the query in 2 to include the company name for each customer using a correlated subquery in the SELECT clause.
+SELECT soh.SalesOrderID, soh.OrderDate, soh.CustomerID, 
+       (SELECT [AccountNumber] FROM [Sales].[Customer] AS c WHERE c.CustomerID=soh.CustomerID) As companyName
+FROM [Sales].[SalesOrderHeader] soh
+
+-- Challenges
+
+-- 1. Retrieve the product ID, name, and list price for each product where the list price is higher than the average unit price for all products that have been sold.
+SELECT [ProductID],[Name],[ListPrice]
+FROM [Production].[Product]
+WHERE [ListPrice] > (SELECT AVG([UnitPrice]) FROM [Sales].[SalesOrderDetail])
+
+-- 2. Retrieve the product ID, name, and list price for each product where the list price is 100 or more and the product has been sold for less than 100.
+SELECT [ProductID],[Name],[ListPrice]
+FROM [Production].[Product]
+WHERE [ListPrice] >= 100
+AND ProductID IN (SELECT [ProductID] FROM [Sales].[SalesOrderDetail] WHERE [LineTotal] < 100)
+
+-- 3. Retrieve the product ID, name, cost, and list price for products that have an average selling price that is lower than the cost.
+SELECT [ProductID],[Name],[StandardCost],[ListPrice],
+       (SELECT AVG([UnitPrice]) FROM [Sales].[SalesOrderDetail] sod WHERE sod.ProductID=p.ProductID) As Average
+FROM [Production].[Product] p
+WHERE (SELECT AVG([UnitPrice]) FROM [Sales].[SalesOrderDetail] sod WHERE sod.ProductID=p.ProductID) < p.StandardCost
